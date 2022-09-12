@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface GetUsersResponse {
   name: {
@@ -66,9 +66,48 @@ function parseUserToLocation(users: GetUsersResponse[]) {
   });
 }
 
+function sortLocations(locationKey: keyof Location, order: SortOrder | null) {
+  return function (locationA: Location, locationB: Location) {
+    const valueOfA = locationA[locationKey];
+    const valueOfB = locationB[locationKey];
+
+    if (valueOfA < valueOfB) return order === "asc" ? -1 : 1;
+    if (valueOfA > valueOfB) return order === "asc" ? 1 : -1;
+
+    return 0;
+  };
+}
+
+const sortByLocationKey = (
+  locationKey: keyof Location,
+  order: SortOrder | null,
+  locationsArray: Location[]
+) => {
+  const locationsCopy = [...locationsArray];
+  locationsCopy.sort(sortLocations(locationKey, order));
+  return locationsCopy;
+};
+
+const toggleSortOrder = (currentOrder: SortOrder | null) => {
+  return currentOrder === "asc" ? "desc" : "asc";
+};
+
+type SortOrder = "asc" | "desc";
+
+type SortState = {
+  key: keyof Location | null;
+  order: SortOrder | null;
+};
+
+const initialSortState: SortState = {
+  key: null,
+  order: null,
+};
+
 function App() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationKeys, setLocationKeys] = useState<Array<keyof Location>>([]);
+  const [sortKey, setSortKey] = useState<SortState>(initialSortState);
 
   const getLocations = useCallback(async () => {
     const users = await getUsers();
@@ -78,12 +117,35 @@ function App() {
     setLocations(locationsResult);
   }, []);
 
+  const handleSelectSortKey = (locationKey: keyof Location) => {
+    setSortKey((prevState) => ({
+      key: locationKey,
+      order:
+        locationKey === prevState.key
+          ? toggleSortOrder(prevState.order)
+          : "desc",
+    }));
+  };
+
+  const sortedLocations = sortKey.key
+    ? sortByLocationKey(sortKey.key, sortKey.order, locations)
+    : locations;
+
+  useEffect(() => {
+    getLocations();
+  }, []);
+
   const renderTableHead = (tableHeadData: Array<keyof Location>) => {
     return (
       <thead>
         <tr>
           {tableHeadData.map((headerItem) => (
-            <th key={headerItem}>{headerItem}</th>
+            <th
+              onClick={() => handleSelectSortKey(headerItem)}
+              key={headerItem}
+            >
+              {headerItem}
+            </th>
           ))}
         </tr>
       </thead>
@@ -99,9 +161,7 @@ function App() {
         {tableBodyData.map((row, rowIndex) => (
           <tr key={`${row.name}-${rowIndex}`}>
             {tableHeadData.map((headerItem) => (
-              <td key={`${headerItem}-${rowIndex}`}>
-                <td>{row[headerItem]}</td>
-              </td>
+              <td key={`${headerItem}-${rowIndex}`}>{row[headerItem]}</td>
             ))}
           </tr>
         ))}
@@ -109,15 +169,11 @@ function App() {
     );
   };
 
-  useEffect(() => {
-    getLocations();
-  }, []);
-
   return (
     <div>
       <table>
         {renderTableHead(locationKeys)}
-        {renderTableBody(locationKeys, locations)}
+        {renderTableBody(locationKeys, sortedLocations)}
       </table>
     </div>
   );
