@@ -21,7 +21,7 @@ interface GetUsersResponse {
   };
 }
 
-interface RandomUserApiResponse {
+export interface RandomUserApiResponse {
   results: GetUsersResponse[];
 }
 
@@ -36,10 +36,11 @@ interface Location {
   longitude: number;
 }
 
-const RANDOM_USER_API_URL = "https://randomuser.me/api/?results=20";
+export const RANDOM_USER_API_BASE_URL = "https://randomuser.me/api";
+const GET_USERS_URL = `${RANDOM_USER_API_BASE_URL}/?results=20`;
 
 async function getUsers() {
-  const response = await fetch(RANDOM_USER_API_URL, { method: "GET" });
+  const response = await fetch(GET_USERS_URL, { method: "GET" });
 
   if (!response.ok) {
     return Promise.reject(new Error("Request was not ok!"));
@@ -50,7 +51,7 @@ async function getUsers() {
   return data.results;
 }
 
-function parseUserToLocation(users: GetUsersResponse[]) {
+export function parseUserToLocation(users: GetUsersResponse[]) {
   return users.map((user) => {
     const location: Location = {
       name: user.location.street.name,
