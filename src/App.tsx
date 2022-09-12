@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useState } from "react";
 
 interface GetUsersResponse {
   name: {
@@ -92,6 +92,17 @@ const toggleSortOrder = (currentOrder: SortOrder | null) => {
   return currentOrder === "asc" ? "desc" : "asc";
 };
 
+const filterLocationsBySearchText = (
+  searchText: string,
+  locations: Location[]
+) => {
+  return locations.filter((location) =>
+    Object.values(location).some((value) =>
+      String(value).toLowerCase().includes(searchText)
+    )
+  );
+};
+
 type SortOrder = "asc" | "desc";
 
 type SortState = {
@@ -108,6 +119,7 @@ function App() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationKeys, setLocationKeys] = useState<Array<keyof Location>>([]);
   const [sortKey, setSortKey] = useState<SortState>(initialSortState);
+  const [searchText, setSearchText] = useState("");
 
   const getLocations = useCallback(async () => {
     const users = await getUsers();
@@ -127,9 +139,17 @@ function App() {
     }));
   };
 
-  const sortedLocations = sortKey.key
-    ? sortByLocationKey(sortKey.key, sortKey.order, locations)
+  const handleSearch = (event: ChangeEvent<HTMLInputElement>) => {
+    setSearchText(event.target.value);
+  };
+
+  const filteredLocations = searchText
+    ? filterLocationsBySearchText(searchText, locations)
     : locations;
+
+  const sortedLocations = sortKey.key
+    ? sortByLocationKey(sortKey.key, sortKey.order, filteredLocations)
+    : filteredLocations;
 
   useEffect(() => {
     getLocations();
@@ -171,6 +191,12 @@ function App() {
 
   return (
     <div>
+      <input
+        name="search"
+        placeholder="Type to search in the table"
+        value={searchText}
+        onChange={handleSearch}
+      />
       <table>
         {renderTableHead(locationKeys)}
         {renderTableBody(locationKeys, sortedLocations)}
