@@ -9,7 +9,7 @@ interface GetUsersResponse {
     city: string;
     state: string;
     country: string;
-    postcode: number;
+    postcode: string | number;
     street: {
       name: string;
       number: number;
@@ -25,15 +25,20 @@ export interface RandomUserApiResponse {
   results: GetUsersResponse[];
 }
 
-interface Location {
+export interface UserLocation {
   name: string;
   city: string;
   state: string;
   country: string;
-  postcode: number;
+  postcode: string;
   number: number;
   latitude: number;
   longitude: number;
+}
+
+export enum SortOrder {
+  ASC = "asc",
+  DESC = "desc",
 }
 
 export const RANDOM_USER_API_BASE_URL = "https://randomuser.me/api";
@@ -53,12 +58,12 @@ async function getUsers() {
 
 export function parseUserToLocation(users: GetUsersResponse[]) {
   return users.map((user) => {
-    const location: Location = {
+    const location: UserLocation = {
       name: user.location.street.name,
       city: user.location.city,
       country: user.location.country,
       state: user.location.state,
-      postcode: user.location.postcode,
+      postcode: user.location.postcode.toString(),
       number: user.location.street.number,
       latitude: user.location.coordinates.latitude,
       longitude: user.location.coordinates.longitude,
@@ -67,22 +72,25 @@ export function parseUserToLocation(users: GetUsersResponse[]) {
   });
 }
 
-function sortLocations(locationKey: keyof Location, order: SortOrder | null) {
-  return function (locationA: Location, locationB: Location) {
+function sortLocations(
+  locationKey: keyof UserLocation,
+  order: SortOrder | null
+) {
+  return function (locationA: UserLocation, locationB: UserLocation) {
     const valueOfA = locationA[locationKey];
     const valueOfB = locationB[locationKey];
 
-    if (valueOfA < valueOfB) return order === "asc" ? -1 : 1;
-    if (valueOfA > valueOfB) return order === "asc" ? 1 : -1;
+    if (valueOfA < valueOfB) return order === SortOrder.ASC ? 1 : -1;
+    if (valueOfA > valueOfB) return order === SortOrder.ASC ? -1 : 1;
 
     return 0;
   };
 }
 
-const sortByLocationKey = (
-  locationKey: keyof Location,
+export const sortByLocationKey = (
+  locationKey: keyof UserLocation,
   order: SortOrder | null,
-  locationsArray: Location[]
+  locationsArray: UserLocation[]
 ) => {
   const locationsCopy = [...locationsArray];
   locationsCopy.sort(sortLocations(locationKey, order));
@@ -90,24 +98,22 @@ const sortByLocationKey = (
 };
 
 const toggleSortOrder = (currentOrder: SortOrder | null) => {
-  return currentOrder === "asc" ? "desc" : "asc";
+  return currentOrder === SortOrder.ASC ? SortOrder.DESC : SortOrder.ASC;
 };
 
 const filterLocationsBySearchText = (
   searchText: string,
-  locations: Location[]
+  locations: UserLocation[]
 ) => {
   return locations.filter((location) =>
     Object.values(location).some((value) =>
-      String(value).toLowerCase().includes(searchText)
+      String(value).toLowerCase().includes(searchText.toLowerCase())
     )
   );
 };
 
-type SortOrder = "asc" | "desc";
-
 type SortState = {
-  key: keyof Location | null;
+  key: keyof UserLocation | null;
   order: SortOrder | null;
 };
 
@@ -117,8 +123,10 @@ const initialSortState: SortState = {
 };
 
 function App() {
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [locationKeys, setLocationKeys] = useState<Array<keyof Location>>([]);
+  const [locations, setLocations] = useState<UserLocation[]>([]);
+  const [locationKeys, setLocationKeys] = useState<Array<keyof UserLocation>>(
+    []
+  );
   const [sortKey, setSortKey] = useState<SortState>(initialSortState);
   const [searchText, setSearchText] = useState("");
 
@@ -126,17 +134,17 @@ function App() {
     const users = await getUsers();
     const locationsResult = parseUserToLocation(users);
     const locationKeysResult = Object.keys(locationsResult[0]);
-    setLocationKeys(locationKeysResult as Array<keyof Location>);
+    setLocationKeys(locationKeysResult as Array<keyof UserLocation>);
     setLocations(locationsResult);
   }, []);
 
-  const handleSelectSortKey = (locationKey: keyof Location) => {
+  const handleSelectSortKey = (locationKey: keyof UserLocation) => {
     setSortKey((prevState) => ({
       key: locationKey,
       order:
         locationKey === prevState.key
           ? toggleSortOrder(prevState.order)
-          : "desc",
+          : SortOrder.ASC,
     }));
   };
 
@@ -156,7 +164,7 @@ function App() {
     getLocations();
   }, []);
 
-  const renderTableHead = (tableHeadData: Array<keyof Location>) => {
+  const renderTableHead = (tableHeadData: Array<keyof UserLocation>) => {
     return (
       <thead>
         <tr>
@@ -174,8 +182,8 @@ function App() {
   };
 
   const renderTableBody = (
-    tableHeadData: Array<keyof Location>,
-    tableBodyData: Location[]
+    tableHeadData: Array<keyof UserLocation>,
+    tableBodyData: UserLocation[]
   ) => {
     return (
       <tbody>
@@ -192,12 +200,15 @@ function App() {
 
   return (
     <div>
-      <input
-        name="search"
-        placeholder="Type to search in the table"
-        value={searchText}
-        onChange={handleSearch}
-      />
+      <label htmlFor="search">
+        Search
+        <input
+          id="search"
+          placeholder="Type to search in the table"
+          value={searchText}
+          onChange={handleSearch}
+        />
+      </label>
       <table>
         {renderTableHead(locationKeys)}
         {renderTableBody(locationKeys, sortedLocations)}
