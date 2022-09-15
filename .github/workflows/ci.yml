@@ -29,9 +29,6 @@ jobs:
       - name: "Build"
         run: npm run build
 
-      - name: Snyk Scan
-        uses: snyk/actions/node@master
-
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
