@@ -1,4 +1,4 @@
-import { logRoles, render, screen, within } from "@testing-library/react";
+import { logRoles, render, screen, within, waitFor } from "@testing-library/react";
 import { assert, describe, expect, test } from "vitest";
 import App, {
   parseUserToLocation,
